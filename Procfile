@@ -1,2 +1,3 @@
-web: vendor/bin/heroku-php-apache2 public/
-release: php artisan migrate --force
+# Procfile no se necesita cuando se usa Dockerfile
+# Railway usará automáticamente el Dockerfile
+
