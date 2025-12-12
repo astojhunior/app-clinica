@@ -25,15 +25,33 @@
     - IP inicio: `0.0.0.0`
     - IP fin: `255.255.255.255`
 
-### Si tu SQL Server es local (en tu máquina):
+### Si tu SQL Server es local (en tu máquina): ✅ USA NGROK
 
-⚠️ **NO funcionará** porque Railway no puede acceder a redes privadas.
+⚠️ **Railway NO puede acceder a máquinas locales directamente**
 
-**Soluciones:**
+**Solución: Usar ngrok para crear un túnel**
 
--   Migra a Azure SQL Database ✅ (Recomendado)
--   Usa VPN/Tunneling
--   Usa otra base de datos compatible (PostgreSQL, MySQL)
+1. **Descarga ngrok** - https://ngrok.com/download
+2. **Inicia el túnel:**
+    ```powershell
+    ngrok tcp 1433
+    ```
+3. **Copia la URL que te muestra** - Algo como: `0.tcp.ngrok.io:12345`
+4. **En Railway configura:**
+    ```
+    DB_HOST=0.tcp.ngrok.io
+    DB_PORT=12345
+    DB_USERNAME=laravel_user
+    DB_PASSWORD=123
+    ```
+
+📖 **Guía completa:** Ver `NGROK_SETUP.md`
+
+### Si tu SQL Server es en otro servidor remoto:
+
+-   Asegúrate de que sea accesible desde Internet
+-   Permite conexiones en el firewall del servidor
+-   Usa las credenciales correctas
 
 ---
 
