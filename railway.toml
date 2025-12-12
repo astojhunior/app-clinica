@@ -5,3 +5,5 @@ builder = "dockerfile"
 startCommand = ""
 healthcheckPath = "/"
 restartPolicyMaxRetries = 5
+restartPolicyWindowSeconds = 60
+

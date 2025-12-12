@@ -63,12 +63,12 @@ RUN rm -f /etc/apache2/sites-available/000-default.conf && \
 # Asegurar que escucha en 0.0.0.0:80 (para Railway)
 RUN echo "Listen 80" >> /etc/apache2/apache2.conf
 
+# Copiar script de entrada
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Exponer puerto 80
 EXPOSE 80
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost/ || exit 1
-
-# Comando para iniciar Apache
-CMD ["apache2-foreground"]
+# Comando para iniciar
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
