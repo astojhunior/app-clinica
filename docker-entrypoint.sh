@@ -23,8 +23,17 @@ php artisan config:cache --quiet || true
 php artisan route:cache --quiet || true
 php artisan view:cache --quiet || true
 
+# Intentar migrar base de datos (si está disponible)
+echo "🔄 Verificando migraciones..."
+if [ "$APP_ENV" = "production" ]; then
+    php artisan migrate --force --quiet || echo "⚠️  Las migraciones no se pudieron ejecutar (DB podría no estar disponible)"
+else
+    php artisan migrate --quiet || echo "⚠️  Las migraciones no se pudieron ejecutar"
+fi
+
 echo "✅ Aplicación lista!"
 echo "🌐 Apache iniciando en puerto 80..."
 
 # Iniciar Apache en foreground
-apache2-foreground
+exec apache2-foreground
+
