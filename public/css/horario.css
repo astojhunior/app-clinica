@@ -1,0 +1,60 @@
+/* public/css/horario.css */
+
+/* Contenedor general del horario */
+.horario-wrapper {
+    background: radial-gradient(circle at top left, #f5f7ff 0, #ffffff 40%);
+}
+
+/* Cabecera de días */
+.horario-table thead th {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* Filas de hora: efecto zebra muy suave */
+.horario-table tbody tr:nth-child(odd) td {
+    background-color: #f9fafb;
+}
+
+.horario-table tbody tr:nth-child(even) td {
+    background-color: #ffffff;
+}
+
+/* Columna de hora más marcada */
+.horario-hora {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background-color: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+}
+
+/* Celdas de día */
+.horario-cell {
+    min-height: 40px;
+    vertical-align: top;
+    position: relative;
+}
+
+/* Bloques de doctor */
+.bloque-horario {
+    border-radius: 9999px;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+    backdrop-filter: blur(4px);
+}
+
+/* Hover sutil en toda la fila de la hora */
+.horario-table tbody tr:hover td {
+    background-color: #eef2ff;
+    transition: background-color 0.2s ease-in-out;
+}
+
+/* Para pantallas pequeñas: que la tabla respire un poco más */
+@media (max-width: 768px) {
+    .horario-table {
+        font-size: 11px;
+    }
+
+    .horario-cell {
+        padding: 4px 6px;
+    }
+}

@@ -1,0 +1,6 @@
+projectKey=Clinica_Calidad
+serverUrl=http://localhost:9000
+serverVersion=25.11.0.114957
+dashboardUrl=http://localhost:9000/dashboard?id=Clinica_Calidad
+ceTaskId=c085faee-3a49-49e2-93c5-88b4e70e95ff
+ceTaskUrl=http://localhost:9000/api/ce/task?id=c085faee-3a49-49e2-93c5-88b4e70e95ff
