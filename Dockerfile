@@ -1,80 +1,152 @@
-# Usar imagen oficial de PHP con Apache
-FROM php:8.2-apache
+# Build stage
+FROM php:8.2-fpm-alpine as builder
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
+# Instalar dependencias
+RUN apk add --no-cache \
     git \
     curl \
     libpq-dev \
-    libmcrypt-dev \
-    libonig-dev \
     libzip-dev \
-    unzip \
     zip \
-    && docker-php-ext-install \
+    unzip
+
+# Instalar extensiones PHP
+RUN docker-php-ext-install \
     pdo \
     pdo_pgsql \
     mbstring \
-    zip \
-    && docker-php-ext-configure opcache --enable-opcache \
-    && docker-php-ext-install opcache
-
-# Desabilitar módulos conflictivos que vienen por defecto
-RUN a2dismod mpm_prefork mpm_worker mpm_event 2>/dev/null || true
-
-# Habilitar solo mpm_prefork
-RUN a2enmod mpm_prefork
-
-# Habilitar módulos necesarios para Laravel
-RUN a2enmod rewrite headers
+    zip
 
 # Instalar Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Establecer el directorio de trabajo
 WORKDIR /app
-
-# Copiar archivos del proyecto
 COPY . /app
 
-# Dar permisos a los directorios de Laravel
-RUN mkdir -p /app/storage /app/bootstrap/cache && \
+# Instalar dependencias de Laravel
+RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
+
+# Production stage
+FROM php:8.2-fpm-alpine
+
+# Instalar nginx
+RUN apk add --no-cache nginx curl supervisor
+
+# Instalar extensiones PHP necesarias
+RUN apk add --no-cache \
+    libpq \
+    libzip
+RUN docker-php-ext-install \
+    pdo \
+    pdo_pgsql \
+    mbstring \
+    zip
+
+# Crear directorios necesarios
+RUN mkdir -p /app /var/log/supervisor /var/run/nginx /var/run/php-fpm
+
+WORKDIR /app
+
+# Copiar aplicación desde builder
+COPY --from=builder --chown=www-data:www-data /app /app
+
+# Configurar PHP-FPM
+RUN echo "[www]\nuser = www-data\ngroup = www-data\nlisten = 127.0.0.1:9000\npm.max_children = 10\npm.start_servers = 3\npm.min_spare_servers = 2\npm.max_spare_servers = 5\n" > /usr/local/etc/php-fpm.d/zz-custom.conf
+
+# Crear directorio de logs y configurar permisos
+RUN mkdir -p /app/storage/logs && \
     chown -R www-data:www-data /app && \
     chmod -R 755 /app/storage /app/bootstrap/cache
 
-# Instalar dependencias de composer
-RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
+# Configurar Nginx
+RUN rm -f /etc/nginx/conf.d/default.conf
+RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    
+    server_name _;
+    
+    root /app/public;
+    index index.php;
+    
+    # Logs
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+    
+    # Gzip compression
+    gzip on;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss application/javascript;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Laravel rewrite rules
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    
+    # PHP handling
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+    
+    # Static files
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    # Health check endpoint
+    location = /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+}
+EOF
 
-# Configurar Apache para Laravel
-RUN rm -f /etc/apache2/sites-available/000-default.conf && \
-    echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf && \
-    echo '    ServerName localhost' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    DocumentRoot /app/public' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    <Directory /app/public>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        Options Indexes FollowSymLinks' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        AllowOverride All' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        Require all granted' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        <IfModule mod_rewrite.c>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteEngine On' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteBase /' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteCond %{REQUEST_FILENAME} !-f' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteCond %{REQUEST_FILENAME} !-d' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteRule ^(.*)$ index.php?$1 [QSA,L]' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        </IfModule>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    </Directory>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    ErrorLog ${APACHE_LOG_DIR}/error.log' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '</VirtualHost>' >> /etc/apache2/sites-available/000-default.conf
+# Configurar supervisor para manejar php-fpm y nginx
+RUN cat > /etc/supervisor/conf.d/supervisord.conf << 'EOF'
+[supervisord]
+nodaemon=true
+logfile=/var/log/supervisor/supervisord.log
+pidfile=/var/run/supervisord.pid
 
-# Asegurar que escucha en 0.0.0.0:80 (para Railway)
-RUN sed -i 's/^Listen 80/Listen 0.0.0.0:80/' /etc/apache2/ports.conf || echo "Listen 0.0.0.0:80" >> /etc/apache2/ports.conf
+[program:php-fpm]
+command=php-fpm -F -R
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/php-fpm.log
+stdout_logfile=/var/log/supervisor/php-fpm.log
+
+[program:nginx]
+command=/usr/sbin/nginx -g "daemon off;"
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/nginx.log
+stdout_logfile=/var/log/supervisor/nginx.log
+EOF
 
 # Copiar script de entrada
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Exponer puerto 80
 EXPOSE 80
 
-# Comando para iniciar
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

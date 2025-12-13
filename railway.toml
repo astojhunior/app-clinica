@@ -3,7 +3,8 @@ builder = "dockerfile"
 
 [deploy]
 startCommand = ""
-healthcheckPath = "/"
+healthcheckPath = "/health"
 restartPolicyMaxRetries = 5
 restartPolicyWindowSeconds = 60
+
 
