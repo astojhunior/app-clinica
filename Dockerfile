@@ -19,7 +19,13 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure opcache --enable-opcache \
     && docker-php-ext-install opcache
 
-# Habilitar mod_rewrite para Laravel
+# Desabilitar módulos conflictivos que vienen por defecto
+RUN a2dismod mpm_prefork mpm_worker mpm_event 2>/dev/null || true
+
+# Habilitar solo mpm_prefork
+RUN a2enmod mpm_prefork
+
+# Habilitar módulos necesarios para Laravel
 RUN a2enmod rewrite headers
 
 # Instalar Composer
@@ -61,7 +67,7 @@ RUN rm -f /etc/apache2/sites-available/000-default.conf && \
     echo '</VirtualHost>' >> /etc/apache2/sites-available/000-default.conf
 
 # Asegurar que escucha en 0.0.0.0:80 (para Railway)
-RUN echo "Listen 80" >> /etc/apache2/apache2.conf
+RUN sed -i 's/^Listen 80/Listen 0.0.0.0:80/' /etc/apache2/ports.conf || echo "Listen 0.0.0.0:80" >> /etc/apache2/ports.conf
 
 # Copiar script de entrada
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

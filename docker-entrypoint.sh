@@ -19,21 +19,30 @@ fi
 
 # Cache de config
 echo "💾 Cacheando configuración..."
-php artisan config:cache --quiet || true
-php artisan route:cache --quiet || true
-php artisan view:cache --quiet || true
+php artisan config:cache --quiet 2>/dev/null || echo "⚠️  No se pudo cachear config"
+php artisan route:cache --quiet 2>/dev/null || echo "⚠️  No se pudo cachear rutas"
+php artisan view:cache --quiet 2>/dev/null || echo "⚠️  No se pudo cachear vistas"
 
 # Intentar migrar base de datos (si está disponible)
 echo "🔄 Verificando migraciones..."
-if [ "$APP_ENV" = "production" ]; then
-    php artisan migrate --force --quiet || echo "⚠️  Las migraciones no se pudieron ejecutar (DB podría no estar disponible)"
+if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "staging" ]; then
+    php artisan migrate --force --quiet 2>/dev/null || echo "⚠️  Las migraciones no se pudieron ejecutar (DB podría no estar disponible)"
 else
-    php artisan migrate --quiet || echo "⚠️  Las migraciones no se pudieron ejecutar"
+    php artisan migrate --quiet 2>/dev/null || echo "⚠️  Las migraciones no se pudieron ejecutar"
 fi
 
 echo "✅ Aplicación lista!"
 echo "🌐 Apache iniciando en puerto 80..."
+echo ""
+
+# Verificar que Apache está bien configurado
+echo "📋 Validando configuración de Apache..."
+apache2ctl configtest
+
+echo ""
+echo "🔥 Iniciando Apache..."
 
 # Iniciar Apache en foreground
 exec apache2-foreground
+
 
