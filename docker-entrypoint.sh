@@ -31,8 +31,17 @@ echo "✅ Aplicación lista!"
 echo "🌐 Iniciando nginx + php-fpm..."
 echo ""
 
-# Iniciar supervisor
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+# Iniciar PHP-FPM en background
+php-fpm --nodaemonize &
+PHP_FPM_PID=$!
+
+# Iniciar Nginx en foreground
+nginx -g "daemon off;" &
+NGINX_PID=$!
+
+# Esperar a que ambos procesos terminen
+wait $PHP_FPM_PID $NGINX_PID
+
 
 
 
