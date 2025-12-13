@@ -1,7 +1,9 @@
 # Build stage
-FROM php:8.2-fpm-alpine as builder
+FROM php:8.2-fpm-bullseye as builder
 
-RUN apk add --no-cache git curl libzip-dev zip unzip
+RUN apt-get update && apt-get install -y \
+    git curl libzip-dev zip unzip \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install pdo mbstring zip
 
@@ -13,12 +15,13 @@ COPY . /app
 RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
 
 # Production stage
-FROM php:8.2-fpm-alpine
+FROM php:8.2-fpm-bullseye
 
-RUN apk add --no-cache nginx bash curl
+RUN apt-get update && apt-get install -y \
+    nginx bash curl libzip5 \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apk add --no-cache libzip && \
-    docker-php-ext-install pdo mbstring zip
+RUN docker-php-ext-install pdo mbstring zip
 
 RUN mkdir -p /app /var/run/nginx /var/run/php-fpm /app/storage/logs /app/bootstrap/cache
 
