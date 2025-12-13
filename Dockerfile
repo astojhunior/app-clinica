@@ -1,9 +1,9 @@
 # Build stage
 FROM php:8.2-fpm-alpine as builder
 
-RUN apk add --no-cache git curl libpq-dev libzip-dev zip unzip
+RUN apk add --no-cache git curl libzip-dev zip unzip
 
-RUN docker-php-ext-install pdo pdo_pgsql mbstring zip
+RUN docker-php-ext-install pdo mbstring zip
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
@@ -17,8 +17,8 @@ FROM php:8.2-fpm-alpine
 
 RUN apk add --no-cache nginx bash curl
 
-RUN apk add --no-cache libpq libzip && \
-    docker-php-ext-install pdo pdo_pgsql mbstring zip
+RUN apk add --no-cache libzip && \
+    docker-php-ext-install pdo mbstring zip
 
 RUN mkdir -p /app /var/run/nginx /var/run/php-fpm /app/storage/logs /app/bootstrap/cache
 
